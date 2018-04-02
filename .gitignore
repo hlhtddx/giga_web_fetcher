@@ -1,0 +1,6 @@
+cookie_set.php
+*.log
+*.pyc
+.vscode
+*.db
+*.jar
