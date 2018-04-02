@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 from __future__ import print_function
 from HTMLParser import HTMLParser
@@ -7,7 +8,30 @@ import logging
 import os.path
 import re
 
-# create a subclass and override the handler methods
+class GigaProduct:
+    def __init__(self):
+        self.id = 0
+        self.code = u''
+        self.title = u''
+        self.large_pic_href = u''
+        self.small_pic_href = u''
+        self.actresses = []
+        self.tags = []
+
+    def set_product(self, id, code, title, large_pic_href, small_pic_href):
+        self.id = id
+        self.code = code
+        self.title = title
+        self.large_pic_href = large_pic_href
+        self.small_pic_href = small_pic_href
+
+    def get_actress_string(self):
+        actress_str = ''
+        for actress in self.actresses:
+            actress_str = '%s,%s' % (actress_str, actress[1])
+        actress_str = actress_str[1:]
+        return actress_str
+
 class GigaPageParser(HTMLParser):
     STATE_INIT = 0
     STATE_WORKS_PIC = 10
@@ -106,7 +130,7 @@ class GigaPageParser(HTMLParser):
             if tag == 'a' and len(attrs) >= 1:
                 if attrs[0][0] == 'href':
                     logging.debug('find flag_actress_href')
-                    match_result = re.search('(?<=actor_id=)\d+', attrs[0][1])
+                    match_result = re.search('(?<=actor_id=)[0-9]+', attrs[0][1])
                     if match_result:
                         self.transist_state(GigaPageParser.STATE_WORKS_TXT_ACTRESS_A)
                         self.actor_id = int(match_result.group(0))
@@ -126,7 +150,7 @@ class GigaPageParser(HTMLParser):
             if tag == 'a' and len(attrs) >= 1:
                 if attrs[0][0] == 'href':
                     logging.debug('find flag_tag_href')
-                    match_result = re.search('(?<=tag_id=)\d+', attrs[0][1])
+                    match_result = re.search('(?<=tag_id=)[0-9]+', attrs[0][1])
                     if match_result:
                         self.transist_state(GigaPageParser.STATE_DIV_TAG_A)
                         self.tag_id = int(match_result.group(0))
@@ -163,11 +187,9 @@ class GigaPageParser(HTMLParser):
             if tag == 'a':
                 self.transist_state(GigaPageParser.STATE_DIV_TAG)
 
-
     def handle_data(self, data):
         logging.debug('handle_data: %s', data)
 
-#        str = unicode(data, 'utf-8')
         str = data
         if self.state == GigaPageParser.STATE_INIT:
             pass
@@ -209,10 +231,14 @@ class GigaPageParser(HTMLParser):
         self.feed(u_content)
         self.close()
         if self.code and self.title:
-            return True
+            product = GigaProduct()
+            product.set_product(self.id, self.code, self.title, self.large_pic_href, self.small_pic_href)
+            product.actresses = self.actress
+            product.tags = self.tags
+            return product
         else:
             logging.error('Failed to parse page : %s', file)
-        return False
+        return None
 
 if __name__ == '__main__':
     if not sys.argv:

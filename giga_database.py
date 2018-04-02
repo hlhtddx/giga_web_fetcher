@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from giga_page_parser import GigaPageParser
+from giga_page_parser import GigaPageParser, GigaProduct
 import sqlite3
 import sys
 import logging
@@ -98,23 +98,6 @@ class GigaDatabase:
         cursor.close()
         return rows
 
-class GigaProduct:
-    def __init__(self, id, code, title, large_pic_href, small_pic_href):
-        self.id = id
-        self.code = code
-        self.title = title
-        self.large_pic_href = large_pic_href
-        self.small_pic_href = small_pic_href
-        self.actresses = []
-        self.tags = []
-
-    def get_actress_string(self):
-        actress_str = ''
-        for actress in self.actresses:
-            actress_str = '%s,%s' % (actress_str, actress[1])
-        actress_str = actress_str[1:]
-        return actress_str
-
 class GigaProductMap:
     def __init__(self):
         self.products = {}
@@ -128,17 +111,16 @@ class GigaProductMap:
         for page in pages:
             parser = GigaPageParser()
 
-            if parser.parse_content(page):
-                product = GigaProduct(parser.id, parser.code, parser.title, parser.large_pic_href, parser.small_pic_href)
+            product = parser.parse_content(page)
+
+            if product:
                 self.products[parser.id] = product
-                self.products_code[parser.code] = product
-                for tag in parser.tags:
+                self.products_code[product.code] = product
+                for tag in product.tags:
                     self.tags[tag[0]] = tag
-                    product.tags.append(tag)
                     self.map_product_tag[(parser.id, tag[0])] = 1
-                for actress in parser.actress:
+                for actress in product.actresses:
                     self.actresses[actress[0]] = actress
-                    product.actresses.append(actress)
                     self.map_product_actress[(parser.id, actress[0])] = 1
 
     def load_from_database(self, database):
@@ -149,7 +131,8 @@ class GigaProductMap:
         product_actress = database.get_all_actresses_of_product()
 
         for prod in product_list:
-            product = GigaProduct(prod[0], prod[1], prod[2], prod[3], prod[4])
+            product = GigaProduct()
+            product.set_product(prod[0], prod[1], prod[2], prod[3], prod[4])
             self.products[product.id] = product
             self.products_code[product.code] = product
 
@@ -250,16 +233,29 @@ class GigaProductMap:
         self.dump_tags()
         self.dump_actresses()
 
+def remove_duplicated(map, ref_map):
+    for key in map.keys():
+        if ref_map.has_key(key):
+            map.pop(key)
+
 def append_to_db(pages):
     logging.basicConfig(level=logging.WARN)
-    giga = GigaProductMap()
+    old_giga = GigaProductMap()
     database = GigaDatabase('giga.db')
-    giga.load_from_database(database)
+    old_giga.load_from_database(database)
+
+    giga = GigaProductMap()
     giga.parse_pages(pages)
+
+    remove_duplicated(giga.products, old_giga.products)
+    remove_duplicated(giga.tags, old_giga.tags)
+    remove_duplicated(giga.actresses, old_giga.actresses)
+    remove_duplicated(giga.map_product_tag, old_giga.map_product_tag)
+    remove_duplicated(giga.map_product_actress, old_giga.map_product_actress)
     giga.dump()
 
-#    giga.save(database.conn)
-#    database.conn.commit()
+    giga.save(database.conn)
+    database.conn.commit()
     database.conn.close()
 
 def init_db(pages):
