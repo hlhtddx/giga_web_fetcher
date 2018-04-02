@@ -57,7 +57,7 @@ def get_file_info(path, product_map):
     new_path = os.path.join(dir, new_base_name)
     print('converting %s \r\n <= %s' % (new_path, old_path))
     os.chdir(dir)
-    if os.path.exists(base):
+    if os.path.exists(base) and base != new_base_name:
         os.rename(base, new_base_name)
 
 def main(files, dbname):
