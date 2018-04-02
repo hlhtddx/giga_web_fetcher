@@ -4,3 +4,5 @@ cookie_set.php
 .vscode
 *.db
 *.jar
+*.html
+*.txt
